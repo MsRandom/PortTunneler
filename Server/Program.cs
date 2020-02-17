@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -11,32 +10,24 @@ namespace PortTunneler.Server
     internal static class Program
     {
         public static readonly Dictionary<int, PortListener> Listeners = new Dictionary<int, PortListener>();
-        public static IPEndPoint? EndPoint { get; private set; }
         private static TcpListener? _connectionListener;
-
-        public static readonly Dictionary<PortType, Func<int, PortListener>> ListenerConstructors =
-            new Dictionary<PortType, Func<int, PortListener>>
-            {
-                {PortType.Tcp, port => new TcpPortListener(port)}
-            };
-
+        
         private static async Task Main(string[] args)
         {
             var listeners = new FileInfo("listeners.json");
             if (listeners.Exists)
             {
-                foreach (var (port, protocol) in JsonSerializer.Deserialize<Dictionary<string, PortType>>(listeners
+                foreach (var port in JsonSerializer.Deserialize<List<int>>(listeners
                     .OpenText()
                     .ReadToEnd()))
                 {
-                    var parsed = int.Parse(port);
-                    Listeners[parsed] = ListenerConstructors[protocol](parsed);
+                    Listeners[port] = new PortListener(port);
                 }
             }
             else
             {
                 var writer = listeners.CreateText();
-                writer.Write("{}");
+                writer.Write("[]");
                 writer.Close();
             }
             
@@ -44,11 +35,9 @@ namespace PortTunneler.Server
             try
             {
                 var p = args.Length == 1 ? int.Parse(args[0]) : 2020;
-                var endPoint = new IPEndPoint(Socket.OSSupportsIPv6 ? IPAddress.IPv6Any : IPAddress.Any, p);
                 _connectionListener = TcpListener.Create(p);
                 _connectionListener.Start();
-                EndPoint = endPoint;
-                Console.WriteLine($"Listening to connections at {endPoint}");
+                Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}");
                 listen:
                     do
                     {
@@ -59,8 +48,6 @@ namespace PortTunneler.Server
                             var reader = new StreamReader(stream);
                             var writer = new StreamWriter(stream);
                             var line = await reader.ReadLineAsync();
-                            if (string.IsNullOrEmpty(line) || !Enum.TryParse<PortType>(line, out var protocol)) continue;
-                            line = await reader.ReadLineAsync();
                             if(string.IsNullOrEmpty(line) || !int.TryParse(line, out var port)) continue;
                             var failed = false;
                             PortListener listener;
@@ -77,12 +64,12 @@ namespace PortTunneler.Server
                             }
                             else
                             {
-                                listener = Listeners[port] = ListenerConstructors[protocol](port);
-                                var deserialized = JsonSerializer.Deserialize<Dictionary<string, PortType>>(
+                                listener = Listeners[port] = new PortListener(port);
+                                var deserialized = JsonSerializer.Deserialize<List<int>>(
                                     listeners
                                         .OpenText()
                                         .ReadToEnd());
-                                deserialized[port.ToString()] = protocol;
+                                deserialized.Add(port);
                                 //var fileWriter = new StreamWriter(listeners.OpenWrite());
                                 //await fileWriter.WriteLineAsync(JsonSerializer.Serialize(deserialized));
                                 //fileWriter.Close();
@@ -97,7 +84,7 @@ namespace PortTunneler.Server
                             else
                             {
                                 listener.Connection = client;
-                                listener.Connect();
+                                await listener.Connect().ConfigureAwait(false);
                                 Console.WriteLine(
                                     $"Client connected and added to listener {listener}.");
                             }

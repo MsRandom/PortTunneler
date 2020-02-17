@@ -1,34 +1,50 @@
+using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace PortTunneler.Server
 {
-    public abstract class PortListener
+    public class PortListener
     {
-        public abstract PortType Protocol { get; }
+        private readonly TcpListener _listener;
         public int Port { get; }
         public TcpClient? Connection { get; set; }
 
-        protected PortListener(int port)
+        public PortListener(int port)
         {
+            _listener = TcpListener.Create(port);
             Port = port;
         }
 
-        public abstract Task Connect();
-
-        public override string ToString()
+        public async Task Connect()
         {
-            return $"{Port}@{Protocol.ToString().ToUpper()}";
-        }
+            _listener.Start();
+            var active = true;
+            try
+            {
+                listen:
+                do
+                {
+                    if (_listener.Pending())
+                    {
+                        var client = await _listener.AcceptTcpClientAsync();
+                        //do something to redirect the client
+                        //if(Connection.Client.RemoteEndPoint is IPEndPoint endpoint) client.Connect(endpoint);
+                    }
+                    else
+                    {
+                        active = false;
+                    }
+                } while (active);
 
-        public override int GetHashCode()
-        {
-            return Port ^ (int)Protocol;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is PortListener p && p.Port == Port && p.Protocol == Protocol && p.Connection == Connection;
+                await Task.Delay(100);
+                active = true;
+                goto listen;
+            }
+            finally
+            {
+                _listener?.Stop();
+            }
         }
     }
 }

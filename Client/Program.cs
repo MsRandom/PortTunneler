@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -9,29 +8,21 @@ namespace PortTunneler.Client
 {
     internal static class Program
     {
-        public static IPEndPoint Server;
-        private static TcpClient _connectionClient;
+        public static TcpClient ConnectionClient;
         
-        public static readonly Dictionary<PortType, Func<IPEndPoint, PortConnection>> ConnectionConstructors =
-            new Dictionary<PortType, Func<IPEndPoint, PortConnection>>
-            {
-                {PortType.Tcp, address => new TcpPortConnection(address)}
-            };
-
-
         private static async Task Main(string[] args)
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Usage: PortTunneler server protocol ip [port]");
+                Console.WriteLine("Usage: PortTunneler server ip [port]");
                 return;
             }
 
             var server = IPEndPoint.Parse(args[0]);
             if (server.Port == 0) server.Port = 2020;
-            var ip = IPEndPoint.Parse(args[2]);
+            var ip = IPEndPoint.Parse(args[1]);
             int port;
-            if (args.Length == 3)
+            if (args.Length == 2)
             {
                 port = ip.Port;
                 if (port == 0)
@@ -41,30 +32,24 @@ namespace PortTunneler.Client
                 }
             }
             else
-                port = int.Parse(args[3]);
+                port = int.Parse(args[2]);
 
-            Server = server;
             try
             {
-                _connectionClient = new TcpClient(AddressFamily.InterNetworkV6)
+                ConnectionClient = new TcpClient(AddressFamily.InterNetworkV6)
                 {
                     Client =
                     {
                         DualMode = true
                     }
                 };
-                _connectionClient.Connect(server);
-                var stream = _connectionClient.GetStream();
+                ConnectionClient.Connect(server);
+                var stream = ConnectionClient.GetStream();
                 var writer = new StreamWriter(stream);
                 var reader = new StreamReader(stream);
-                var protocol = (PortType) Enum.Parse(typeof(PortType),
-                    args[1][0].ToString().ToUpper() + args[1].Substring(1).ToLower());
-                await writer.WriteLineAsync(protocol.ToString());
-                writer.Flush();
                 await writer.WriteLineAsync(port.ToString());
                 writer.Flush();
                 var response = await reader.ReadLineAsync();
-                writer.Close();
                 switch (response)
                 {
                     case "W":
@@ -82,22 +67,9 @@ namespace PortTunneler.Client
                         break;
                     }
                 }
-
-                var handler = ConnectionConstructors[protocol](ip);
-                await Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        await handler.SendToLocal(await handler.ReceiveFromRemote());
-                    }
-                }).ConfigureAwait(false);
-                await Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        await handler.SendToRemote(await handler.ReceiveFromLocal());
-                    }
-                }).ConfigureAwait(false);
+                
+                //handle traffic between client and server
+                
                 await Task.Delay(-1);
             }
             catch (Exception e)

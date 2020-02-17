@@ -8,14 +8,13 @@ namespace PortTunneler
     {
         public static async Task<byte[]> ReadBytesAsync(this NetworkStream stream)
         {
-            var resp = new byte[short.MaxValue];
-            var memStream = new MemoryStream();
-            int bytes;
+            var resp = new byte[1024];
+            await using var memStream = new MemoryStream();
             do
             {
-                bytes = await stream.ReadAsync(resp, 0, resp.Length);
+                var bytes = await stream.ReadAsync(resp, 0, resp.Length);
                 await memStream.WriteAsync(resp, 0, bytes);
-            } while (bytes > 0);
+            } while (stream.DataAvailable);
             return memStream.ToArray();
         }
     }
