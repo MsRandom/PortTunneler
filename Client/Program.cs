@@ -1,14 +1,18 @@
 ﻿using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace PortTunneler.Client
 {
     internal static class Program
     {
-        public static TcpClient ConnectionClient;
+        private static readonly Dictionary<ushort, TcpClient> Clients = new Dictionary<ushort, TcpClient>();
+        private static TcpClient _connectionClient;
+        private static bool _startedReading;
         
         private static async Task Main(string[] args)
         {
@@ -34,41 +38,57 @@ namespace PortTunneler.Client
             else
                 port = int.Parse(args[2]);
 
+            if(port < 1024 || port > 49151) throw new ArgumentOutOfRangeException(nameof(port), port, "Port is too " + (port < 1024 ? "small" : "big"));
+            
             try
             {
-                ConnectionClient = new TcpClient(AddressFamily.InterNetworkV6)
+                _connectionClient = new TcpClient(AddressFamily.InterNetworkV6)
                 {
                     Client =
                     {
                         DualMode = true
                     }
                 };
-                ConnectionClient.Connect(server);
-                var stream = ConnectionClient.GetStream();
-                var writer = new StreamWriter(stream);
-                var reader = new StreamReader(stream);
-                await writer.WriteLineAsync(port.ToString());
-                writer.Flush();
-                var response = await reader.ReadLineAsync();
+                _connectionClient.Connect(server);
+                var stream = _connectionClient.GetStream();
+                var bytes = BitConverter.GetBytes((ushort) port);
+                await stream.WriteAsync(bytes, 0, bytes.Length);
+                await stream.FlushAsync();
+                bytes = new byte[2];
+                await stream.ReadAsync(bytes, 0, bytes.Length);
+                var response = BitConverter.ToChar(bytes, 0);
                 switch (response)
                 {
-                    case "W":
+                    case 'W':
                         Console.WriteLine(
                             "Warning: You are using a port which had been used before, if it was not you who previously used the port, please stop and refrain from using it in the future.");
                         break;
-                    case "E":
+                    case 'E':
                         throw new Exception("Port is already in use.");
                     default:
                     {
-                        if (response != "I")
+                        if (response != 'I')
                             throw new Exception(
                                 "Failed to get success status from server. Assuming connection failure.");
                         Console.WriteLine("Connected.");
                         break;
                     }
                 }
-                
-                //handle traffic between client and server
+
+                while (_connectionClient.Connected)
+                {
+                    bytes = new byte[8];
+                    await stream.ReadAsync(bytes, 0, bytes.Length);
+                    var connection = Encoding.UTF8.GetString(bytes);
+                    if (connection != NetworkUtils.NewClient) continue;
+                    bytes = new byte[2];
+                    await stream.ReadAsync(bytes, 0, bytes.Length);
+                    var id = BitConverter.ToUInt16(bytes, 0);
+                    var client = new TcpClient();
+                    client.Connect(ip);
+                    Clients[id] = client;
+                    HandleTraffic(id, client).Continue();
+                }
                 
                 await Task.Delay(-1);
             }
@@ -76,6 +96,44 @@ namespace PortTunneler.Client
             {
                 Console.Error.WriteLine(e);
             }
+        }
+
+        private static Task HandleTraffic(ushort id, TcpClient client)
+        {
+            var first = false;
+            if (!_startedReading)
+            {
+                _startedReading = true;
+                first = true;
+            }
+            while (_connectionClient.Connected)
+            {
+                WriteToRemote(id, client).Continue();
+                if(first) WriteToLocal().Continue();
+            }
+            return Task.CompletedTask;
+        }
+        
+        private static async Task WriteToLocal()
+        {
+            var bytes = await _connectionClient.GetStream().ReadBytesAsync();
+            if (bytes.Length > 2)
+            {
+                var list = new List<byte>(bytes);
+                var shorts = new[] {bytes[0], bytes[1]};
+                list.RemoveRange(0, 2);
+                bytes = list.ToArray();
+                var client = Clients[BitConverter.ToUInt16(shorts, 0)];
+                await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
+                await client.GetStream().FlushAsync();
+            }
+        }
+        
+        private static async Task WriteToRemote(ushort id, TcpClient client)
+        {
+            var bytes = BitConverter.GetBytes(id).Concat(await client.GetStream().ReadBytesAsync()).ToArray();
+            await _connectionClient.GetStream().WriteAsync(bytes, 0, bytes.Length);
+            await _connectionClient.GetStream().FlushAsync();
         }
     }
 }

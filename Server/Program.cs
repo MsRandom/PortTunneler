@@ -27,8 +27,8 @@ namespace PortTunneler.Server
             else
             {
                 var writer = listeners.CreateText();
-                writer.Write("[]");
-                writer.Close();
+                await writer.WriteAsync("[]");
+                await writer.FlushAsync();
             }
             
             var active = true;
@@ -45,22 +45,21 @@ namespace PortTunneler.Server
                         {
                             var client = await _connectionListener.AcceptTcpClientAsync();
                             var stream = client.GetStream();
-                            var reader = new StreamReader(stream);
-                            var writer = new StreamWriter(stream);
-                            var line = await reader.ReadLineAsync();
-                            if(string.IsNullOrEmpty(line) || !int.TryParse(line, out var port)) continue;
+                            var bytes = new byte[2];
+                            await stream.ReadAsync(bytes, 0, bytes.Length);
+                            var port = BitConverter.ToUInt16(bytes, 0);
                             var failed = false;
                             PortListener listener;
+                            char code;
                             if (Listeners.ContainsKey(port))
                             {
                                 listener = Listeners[port];
                                 if (listener.Connection != null && listener.Connection.Connected)
                                 {
-                                    writer.WriteLine("E");
+                                    code = 'E';
                                     failed = true;
                                 }
-                                else
-                                    writer.WriteLine("W");
+                                else code = 'W';
                             }
                             else
                             {
@@ -73,10 +72,12 @@ namespace PortTunneler.Server
                                 //var fileWriter = new StreamWriter(listeners.OpenWrite());
                                 //await fileWriter.WriteLineAsync(JsonSerializer.Serialize(deserialized));
                                 //fileWriter.Close();
-                                writer.WriteLine("I");
+                                code = 'I';
                             }
 
-                            writer.Close();
+                            bytes = BitConverter.GetBytes(code);
+                            await stream.WriteAsync(bytes, 0, bytes.Length);
+                            await stream.FlushAsync();
 
                             if (failed)
                                 Console.WriteLine(
@@ -84,9 +85,9 @@ namespace PortTunneler.Server
                             else
                             {
                                 listener.Connection = client;
-                                await listener.Connect().ConfigureAwait(false);
+                                listener.Connect().Continue();
                                 Console.WriteLine(
-                                    $"Client connected and added to listener {listener}.");
+                                    $"Client connected and added to listener {port}.");
                             }
                         }
                         else
