@@ -3,5 +3,7 @@ Client/bin
 Client/obj
 Common/bin
 Common/obj
+PortTunneler/bin
+PortTunneler/obj
 Server/bin
 Server/obj
