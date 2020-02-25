@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace PortTunneler
@@ -14,7 +13,10 @@ namespace PortTunneler
 
         private static async Task Main(string[] args)
         {
-            await Sides[args[0]].Run(args.Skip(0).ToArray());
+            var filter = new List<string>(args);
+            filter.RemoveAt(0);
+            Protocols.Types.ForEach(protocol => protocol.Init());
+            await Sides[args[0]].Run(filter.ToArray());
         }
     }
 }

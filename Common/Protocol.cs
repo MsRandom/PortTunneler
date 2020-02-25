@@ -17,12 +17,26 @@ namespace PortTunneler.Utils
             Name = name;
             CreateServer = serverCreator;
             CreateClient = clientCreator;
-            Registry[name] = this;
+        }
+        
+        public void Init()
+        {
+            Registry[Name] = this;
         }
         
         public override string ToString()
         {
             return Name;
+        }
+        
+        public override bool Equals(object? obj)
+        {
+            return obj is Protocol protocol && Name.Equals(protocol.Name);
+        }
+        
+        public override int GetHashCode()
+        {
+            return Name.GetHashCode();
         }
         
         public static bool TryParse(string name, out Protocol? protocol)

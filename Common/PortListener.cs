@@ -1,10 +1,8 @@
-using System.Threading.Tasks;
-
 namespace PortTunneler.Utils
 {
     public abstract class PortListener : PortConnection
     {
-        public int Port { get; }
+        protected int Port { get; }
 
         protected PortListener(Protocol protocol, int port) : base(protocol)
         {
@@ -14,6 +12,16 @@ namespace PortTunneler.Utils
         public override string ToString()
         {
             return $"{Port}@{Protocol}";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is PortListener listener && listener.Port == Port && listener.Protocol.Equals(Protocol);
+        }
+
+        public override int GetHashCode()
+        {
+            return Port ^ Protocol.GetHashCode();
         }
     }
 }

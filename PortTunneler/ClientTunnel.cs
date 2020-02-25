@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 using PortTunneler.Utils;
 
@@ -25,11 +24,13 @@ namespace PortTunneler
                 Console.WriteLine("Invalid protocol was used.");
                 return;
             }
+            
             if (!IPEndPoint.TryParse(args[2], out var ip))
             {
                 Console.WriteLine("Invalid ip endpoint for the local server.");
                 return;
             }
+            
             int port;
             if (args.Length == 3)
             {
@@ -77,41 +78,13 @@ namespace PortTunneler
                     }
                 }
 
-                var handler = protocol.CreateClient(protocol, ip);
-                await handler.Connect();
-
-                /*while (connectionClient.Connected)
+                if (protocol != null)
                 {
-                    bytes = new byte[6];
-                    await stream.ReadAsync(bytes, 0, bytes.Length);
-                    var connection = Encoding.UTF8.GetString(bytes);
-                    if (connection != NetworkUtils.NewClient && connection != NetworkUtils.EndClient &&
-                        connection != NetworkUtils.RecClient) continue;
-                    bytes = new byte[2];
-                    await stream.ReadAsync(bytes, 0, bytes.Length);
-                    var id = BitConverter.ToUInt16(bytes, 0);
-                    switch (connection)
-                    {
-                        case NetworkUtils.NewClient:
-                            var client = new TcpClient();
-                            client.Connect(ip);
-                            Clients[id] = client;
-                            HandleTraffic(id, client).Continue();
-                            break;
-                        case NetworkUtils.EndClient:
-                            var removed = Clients[id];
-                            removed.Close();
-                            Clients.Remove(id);
-                            break;
-                        case NetworkUtils.RecClient:
-                            bytes = await stream.ReadBytesAsync();
-                            var rec = Clients[id];
-                            await rec.GetStream().WriteAsync(bytes, 0, bytes.Length);
-                            await rec.GetStream().FlushAsync();
-                            break;
-
-                    }
-                }*/
+                    var client = protocol.CreateClient(protocol, ip);
+                    client.Connection = connectionClient;
+                    await client.Connect();
+                    connectionClient.Close();
+                }
             }
             catch (Exception e)
             {
