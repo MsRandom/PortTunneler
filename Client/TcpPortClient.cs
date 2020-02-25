@@ -25,11 +25,11 @@ namespace PortTunneler.Client
             {
                 _reader = new BinaryReader(stream);
                 _writer = new BinaryWriter(stream);
-                await NetworkUtils.CreateActiveListener(async () =>
+                await NetworkUtils.CreateActiveListener(() =>
                 {
                     var connection = _reader.ReadString();
                     if (connection != NetworkUtils.NewClient && connection != NetworkUtils.EndClient &&
-                        connection != NetworkUtils.RecClient) return;
+                        connection != NetworkUtils.RecClient) return Task.CompletedTask;
                     var id = _reader.ReadUInt16();
                     switch (connection)
                     {
@@ -49,11 +49,12 @@ namespace PortTunneler.Client
                         case NetworkUtils.RecClient:
                             var rec = _clients[id];
                             var bytes = _reader.ReadBytes(0);
-                            _streams[rec].Item2.Write(bytes);
-                            await rec.GetStream().WriteAsync(bytes, 0, bytes.Length);
-                            await rec.GetStream().FlushAsync();
+                                var writer = _streams[rec].Item2;
+                            writer.Write(bytes);
+                            writer.Flush();
                             break;
                     }
+                    return Task.CompletedTask;
                 }, () => Console.WriteLine("Connection ended."));
             }
         }
