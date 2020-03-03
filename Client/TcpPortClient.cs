@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 using PortTunneler.Utils;
 
@@ -12,64 +12,67 @@ namespace PortTunneler.Client
     public class TcpPortClient : PortClient
     {
         private readonly Dictionary<ushort, TcpClient> _clients = new Dictionary<ushort, TcpClient>();
-        private readonly Dictionary<TcpClient, (BinaryReader, BinaryWriter)> _streams = new Dictionary<TcpClient, (BinaryReader, BinaryWriter)>();
-        private BinaryReader _reader;
-        private BinaryWriter _writer;
         
         private TcpPortClient(Protocol protocol, IPEndPoint endPoint) : base(protocol, endPoint) {}
         
-        public override async Task Connect()
+        public override async Task HandleTraffic()
         {
-            var stream = Connection?.GetStream();
-            if (stream != null)
+            if(Connection == null) return;
+            if (Connection.GetStream().DataAvailable)
             {
-                _reader = new BinaryReader(stream);
-                _writer = new BinaryWriter(stream);
-                await NetworkUtils.CreateActiveListener(() =>
+                var bytes = new byte[6];
+                await Connection.GetStream().ReadAsync(bytes, 0, bytes.Length);
+                var connection = Encoding.UTF8.GetString(bytes);
+                if (connection == NetworkUtils.RemClient)
                 {
-                    var connection = _reader.ReadString();
-                    if (connection != NetworkUtils.NewClient && connection != NetworkUtils.EndClient &&
-                        connection != NetworkUtils.RecClient) return Task.CompletedTask;
-                    var id = _reader.ReadUInt16();
-                    switch (connection)
-                    {
-                        case NetworkUtils.NewClient:
-                            var client = new TcpClient();
-                            client.Connect(EndPoint);
-                            var s = client.GetStream();
-                            _clients[id] = client;
-                            _streams[client] = (new BinaryReader(s), new BinaryWriter(s));
-                            HandleTraffic(id, client).Continue();
-                            break;
-                        case NetworkUtils.EndClient:
-                            var removed = _clients[id];
-                            removed.Close();
-                            _clients.Remove(id);
-                            break;
-                        case NetworkUtils.RecClient:
-                            var rec = _clients[id];
-                            var bytes = _reader.ReadBytes(0);
-                                var writer = _streams[rec].Item2;
-                            writer.Write(bytes);
-                            writer.Flush();
-                            break;
-                    }
-                    return Task.CompletedTask;
-                }, () => Console.WriteLine("Connection ended."));
+                    await Close();
+                    return;
+                }
+                if (connection != NetworkUtils.NewClient && connection != NetworkUtils.EndClient &&
+                    connection != NetworkUtils.RecClient) return;
+                bytes = new byte[2];
+                await Connection.GetStream().ReadAsync(bytes, 0, bytes.Length);
+                var id = BitConverter.ToUInt16(bytes, 0);
+                switch (connection)
+                {
+                    case NetworkUtils.NewClient:
+                        var client = new TcpClient();
+                        await client.ConnectAsync(EndPoint.Address, EndPoint.Port);
+                        _clients[id] = client;
+                        break;
+                    case NetworkUtils.EndClient:
+                        var removed = _clients[id];
+                        removed.Close();
+                        _clients.Remove(id);
+                        break;
+                    case NetworkUtils.RecClient:
+                        var rec = _clients[id];
+                        bytes = await Connection.GetStream().ReadSized();
+                        if(bytes == null) return;
+                        await rec.GetStream().WriteAsync(bytes, 0, bytes.Length);
+                        await rec.GetStream().FlushAsync();
+                        break;
+                }
+            }
+            foreach (var (id, client) in _clients)
+            {
+                if (!client.GetStream().DataAvailable) continue;
+                var bytes = await client.GetStream().ReadBytesAsync();
+                await Connection.GetStream().WriteSized(BitConverter.GetBytes(id).Concat(bytes).ToArray());
             }
         }
 
-        private Task HandleTraffic(ushort id, TcpClient client)
+        public override Task Close()
         {
-            while (client.Connected && Connection != null && Connection.Connected)
+            foreach (var (_, client) in _clients)
             {
-                var bytes = _streams[client].Item1.ReadBytes(0);
-                _writer.Write(BitConverter.GetBytes(id).Concat(bytes).ToArray());
-                _writer.Flush();
+                client.Close();
             }
+
+            Connection?.Close();
             return Task.CompletedTask;
         }
-        
+
         public static PortClient Create(Protocol protocol, IPEndPoint endPoint) => new TcpPortClient(protocol, endPoint);
     }
 }

@@ -2,12 +2,15 @@ namespace PortTunneler.Utils
 {
     public abstract class PortListener : PortConnection
     {
-        protected int Port { get; }
+        private int Port { get; }
 
         protected PortListener(Protocol protocol, int port) : base(protocol)
         {
             Port = port;
         }
+        
+        //Connects the listener without blocking the thread
+        public abstract void Connect();
         
         public override string ToString()
         {

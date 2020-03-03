@@ -13,7 +13,10 @@ namespace PortTunneler.Utils
         {
             Protocol = protocol;
         }
+        
+        //Handles all traffic in the main program loop without blocking the thread
+        public abstract Task HandleTraffic();
 
-        public abstract Task Connect();
+        public abstract Task Close();
     }
 }

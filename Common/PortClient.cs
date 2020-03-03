@@ -4,7 +4,7 @@ namespace PortTunneler.Utils
 {
     public abstract class PortClient : PortConnection
     {
-        public IPEndPoint EndPoint { get; }
+        protected IPEndPoint EndPoint { get; }
 
         protected PortClient(Protocol protocol, IPEndPoint endPoint) : base(protocol)
         {

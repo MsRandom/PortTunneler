@@ -1,16 +1,22 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace PortTunneler
 {
+    //maybe use ValueTask eventually?
     public static class NetworkUtils
     {
+        //TCP events sent and read as 6 byte strings
         public const string NewClient = "TunnNC";
         public const string EndClient = "TunnEC";
         public const string RecClient = "TunnDC";
+        public const string RemClient = "TunnRM";
 
+        //Read all data currently available without blocking, use stream.DataAvailable to make sure this is needed before using it to prevent confusing bugs 
         public static async Task<byte[]> ReadBytesAsync(this NetworkStream stream)
         {
             if (!stream.CanRead) return new byte[0];
@@ -30,11 +36,38 @@ namespace PortTunneler
             return ms.ToArray();
         }
 
+        public static async Task<byte[]?> ReadSized(this NetworkStream stream)
+        {
+            var bytes = new byte[2];
+            await stream.ReadAsync(bytes, 0, 2);
+            var size = BitConverter.ToInt16(new[] {bytes[0], bytes[1]}, 0);
+            if (size <= 2) return null;
+            bytes = new byte[size];
+            await stream.ReadAsync(bytes, 0, size);
+            return bytes;
+        }
+        
+        public static async Task WriteSized(this NetworkStream stream, byte[] data)
+        {
+            if (data.Length <= ushort.MaxValue - 2)
+            {
+                var bytes = BitConverter.GetBytes(Convert.ToInt16(data.Length)).Concat(data).ToArray();
+                await stream.WriteAsync(bytes, 0, bytes.Length);
+                await stream.FlushAsync();
+            }
+            else throw new ArgumentOutOfRangeException(nameof(data.Length), data.Length, "Attempted to write data that was too big.");
+        }
+
+        //Simpler version of the older method, isn't meant to be used often
+        public static async void Continue(this Task task) => await task;
+
+        /*
         //Meant to be used as a way of "Fire and Forget", awaits the task without blocking the current thread and adds error handling, not sure how well it works
         public static async void Continue(this Task task)
         {
             try
             {
+                Tasks.Add(task);
                 await task;
             }
             catch (Exception e)
@@ -44,12 +77,12 @@ namespace PortTunneler
             }
         }
 
-        //Is completely blocking if awaited, used to listen to connections with a callback for reaching them
         public static async Task CreateTcpServer(this TcpListener listener, Func<TcpClient, Task> connection, Action end)
         {
             await CreateActiveListener(async () => await connection(await listener.AcceptTcpClientAsync()), end);
         }
         
+        //Is completely blocking if awaited, used to listen to anything blocking with a callback for reaching it
         public static async Task CreateActiveListener(Func<Task> callback, Action end)
         {
             try
@@ -76,6 +109,6 @@ namespace PortTunneler
             {
                 end();
             }
-        }
+        }*/
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using PortTunneler.Utils;
 
 namespace PortTunneler
 {
@@ -15,7 +16,7 @@ namespace PortTunneler
         {
             var filter = new List<string>(args);
             filter.RemoveAt(0);
-            Protocols.Types.ForEach(protocol => protocol.Init());
+            Protocols.Types.ForEach(Protocol.Init);
             await Sides[args[0]].Run(filter.ToArray());
         }
     }

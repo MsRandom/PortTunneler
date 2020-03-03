@@ -56,13 +56,14 @@ namespace PortTunneler
             try
             {
                 var connectionClient = new TcpClient();
-                connectionClient.Connect(server);
+                await connectionClient.ConnectAsync(server.Address, server.Port);
                 var stream = connectionClient.GetStream();
-                var reader = new BinaryReader(stream);
                 var writer = new StreamWriter(stream);
                 await writer.WriteLineAsync($"{port}@{protocol}");
                 await writer.FlushAsync();
-                var response = reader.ReadChar();
+                var bytes = new byte[2];
+                await stream.ReadAsync(bytes, 0, 1);
+                var response = BitConverter.ToChar(bytes, 0);
                 switch (response)
                 {
                     case 'W':
@@ -82,13 +83,29 @@ namespace PortTunneler
                 {
                     var client = protocol.CreateClient(protocol, ip);
                     client.Connection = connectionClient;
-                    await client.Connect();
-                    connectionClient.Close();
+                    Console.WriteLine("Enter 'stop' to close the connection.");
+                    var active = true;
+                    Task.Run(() =>
+                    {
+                        do
+                        {
+                            var line = Console.ReadLine();
+                            if (!string.IsNullOrEmpty(line) && line.ToLower().Contains("stop")) active = false;
+                        } while (active);
+                    }).Continue();
+                    while (active)
+                    {
+                        await client.HandleTraffic();
+                    }
+                    await client.Close();
+                    Console.WriteLine("Connection ended, press any key to continue...");
+                    Console.ReadKey();
                 }
             }
             catch (Exception e)
             {
                 Console.Error.WriteLine(e);
+                Console.WriteLine("Caught an exception, connection ended.");
             }
         }
     }

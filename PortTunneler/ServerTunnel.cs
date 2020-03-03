@@ -10,82 +10,105 @@ namespace PortTunneler
 {
     public class ServerTunnel : SidedTunnel
     {
-        public static readonly Dictionary<int, PortListener> Listeners = new Dictionary<int, PortListener>();
-        private static TcpListener? _connectionListener;
+        private readonly Dictionary<int, PortListener> _listeners = new Dictionary<int, PortListener>();
+        private TcpListener? _connectionListener;
 
         public override async Task Run(string[] args)
         {
-            var listeners = new FileInfo("listeners.json");
-            var exists = listeners.Exists;
-            var fileStream = listeners.Open(FileMode.OpenOrCreate);
-            var fileReader = new StreamReader(fileStream);
-            var fileWriter = new StreamWriter(fileStream);
-            if (exists)
+            const string listeners = "listeners.json";
+            if (File.Exists(listeners))
             {
-                foreach (var (key, value) in JsonSerializer.Deserialize<Dictionary<string, string>>(
-                    await fileReader.ReadToEndAsync()))
+                foreach (var (key, value) in JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(listeners)))
                 {
                     var port = int.Parse(key);
                     if (Protocol.TryParse(value, out var protocol) && protocol != null)
-                        Listeners[port] = protocol.CreateServer(protocol, port);
+                        _listeners[port] = protocol.CreateServer(protocol, port);
                 }
             }
             else
-            {
-                await fileWriter.WriteAsync("[]");
-                await fileWriter.FlushAsync();
-            }
+                await File.WriteAllTextAsync(listeners, "{}");
 
             var p = args.Length == 1 ? int.Parse(args[0]) : 2020;
             _connectionListener = TcpListener.Create(p);
             _connectionListener.Start();
-            Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}");
-            await _connectionListener.CreateTcpServer(async client =>
+            Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}, enter 'stop' to close the listener.");
+            var active = true;
+            Task.Run(() =>
             {
-                var stream = client.GetStream();
-                var reader = new StreamReader(stream);
-                var writer = new BinaryWriter(stream);
-                var connection = await reader.ReadLineAsync();
-                if (connection == null) return;
-                var variables = connection.Split('@');
-                if (variables.Length <= 1 || !int.TryParse(variables[0], out var port) ||
-                    !Protocol.TryParse(variables[1], out var protocol)) return;
-                if (protocol == null) return;
-                PortListener listener;
-                if (Listeners.ContainsKey(port))
+                do
                 {
-                    listener = Listeners[port];
-                    if (listener.Connection != null && listener.Connection.Connected)
+                    var line = Console.ReadLine();
+                    if (!string.IsNullOrEmpty(line) && line.ToLower().Contains("stop")) active = false;
+                } while (active);
+            }).Continue();
+            while (active)
+            {
+                try
+                {
+                    foreach (var (_, value) in _listeners)
                     {
-                        Console.WriteLine(
-                            $"Client attempted to use listener {listener} which is already in use. Connection was rejected.");
-                        writer.Write('E');
-                        writer.Flush();
-                        return;
+                        await value.HandleTraffic();
                     }
 
-                    writer.Write('W');
-                }
-                else
-                {
-                    listener = Listeners[port] = protocol.CreateServer(protocol, port);
-                    /*var deserialized = JsonSerializer.Deserialize<List<int>>(fileReader.ReadToEnd());
-                        deserialized.Add(port);
-                        await fileWriter.WriteLineAsync(JsonSerializer.Serialize(deserialized));
-                        await fileWriter.FlushAsync();*/
-                    writer.Write('I');
-                }
+                    if (!_connectionListener.Pending()) continue;
+                    var client = await _connectionListener.AcceptTcpClientAsync();
+                    var stream = client.GetStream();
+                    var reader = new StreamReader(stream);
+                    var connection = await reader.ReadLineAsync();
+                    if (connection == null) continue;
+                    var variables = connection.Split('@');
+                    if (variables.Length <= 1 || !int.TryParse(variables[0], out var port) ||
+                        !Protocol.TryParse(variables[1], out var protocol)) continue;
+                    if (protocol == null) continue;
+                    PortListener listener;
+                    char code;
+                    if (_listeners.ContainsKey(port))
+                    {
+                        listener = _listeners[port];
+                        if (listener.Connection != null && listener.Connection.Connected)
+                        {
+                            Console.WriteLine(
+                                $"Client attempted to use listener {listener} which is already in use. Connection was rejected.");
+                            await stream.WriteAsync(BitConverter.GetBytes('E'), 0, 1);
+                            await stream.FlushAsync();
+                            continue;
+                        }
 
-                writer.Flush();
-                listener.Connection = client;
-                listener.Connect().Continue();
-                Console.WriteLine(
-                    $"Client connected and added to listener {listener}.");
-            }, () =>
+                        code = 'W';
+                    }
+                    else
+                    {
+                        listener = _listeners[port] = protocol.CreateServer(protocol, port);
+                        var deserialized =
+                            JsonSerializer.Deserialize<Dictionary<string, string>>(
+                                await File.ReadAllTextAsync(listeners));
+                        deserialized[port.ToString()] = protocol.ToString();
+                        await File.WriteAllTextAsync(listeners, JsonSerializer.Serialize(deserialized));
+                        code = 'I';
+                    }
+
+                    await stream.WriteAsync(BitConverter.GetBytes(code), 0, 1);
+                    await stream.FlushAsync();
+                    listener.Connection = client;
+                    listener.Connect();
+                    Console.WriteLine(
+                        $"Client connected and added to listener {listener}.");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Caught an exception, exiting.");
+                    Console.Error.WriteLine(e);
+                    active = false;
+                }
+            }
+
+            _connectionListener?.Stop();
+            foreach (var (_, value) in _listeners)
             {
-                _connectionListener?.Stop();
-                Console.WriteLine("Listener Stopped");
-            });
+                await value.Close();
+            }
+            Console.WriteLine("Listener Stopped, press any key to continue...");
+            Console.ReadKey();
         }
     }
 }

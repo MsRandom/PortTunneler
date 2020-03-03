@@ -23,6 +23,12 @@ namespace PortTunneler.Utils
         {
             Registry[Name] = this;
         }
+
+        //Helper method for nicer looking code
+        public static void Init(Protocol protocol)
+        {
+            protocol.Init();
+        }
         
         public override string ToString()
         {
