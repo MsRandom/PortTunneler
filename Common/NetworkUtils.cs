@@ -14,7 +14,6 @@ namespace PortTunneler
         public const string NewClient = "TunnNC";
         public const string EndClient = "TunnEC";
         public const string RecClient = "TunnDC";
-        public const string RemClient = "TunnRM";
 
         //Read all data currently available without blocking, use stream.DataAvailable to make sure this is needed before using it to prevent confusing bugs 
         public static async Task<byte[]> ReadBytesAsync(this NetworkStream stream)
@@ -57,9 +56,7 @@ namespace PortTunneler
             }
             else throw new ArgumentOutOfRangeException(nameof(data.Length), data.Length, "Attempted to write data that was too big.");
         }
-
-        //Simpler version of the older method, isn't meant to be used often
-        public static async void Continue(this Task task) => await task;
+        
 
         /*
         //Meant to be used as a way of "Fire and Forget", awaits the task without blocking the current thread and adds error handling, not sure how well it works

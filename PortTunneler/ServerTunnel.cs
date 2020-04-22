@@ -33,23 +33,10 @@ namespace PortTunneler
             _connectionListener.Start();
             Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}, enter 'stop' to close the listener.");
             var active = true;
-            Task.Run(() =>
-            {
-                do
-                {
-                    var line = Console.ReadLine();
-                    if (!string.IsNullOrEmpty(line) && line.ToLower().Contains("stop")) active = false;
-                } while (active);
-            }).Continue();
             while (active)
             {
                 try
                 {
-                    foreach (var (_, value) in _listeners)
-                    {
-                        await value.HandleTraffic();
-                    }
-
                     if (!_connectionListener.Pending()) continue;
                     var client = await _connectionListener.AcceptTcpClientAsync();
                     var stream = client.GetStream();
@@ -90,7 +77,7 @@ namespace PortTunneler
                     await stream.WriteAsync(BitConverter.GetBytes(code), 0, 1);
                     await stream.FlushAsync();
                     listener.Connection = client;
-                    listener.Connect();
+                    await listener.Connect();
                     Console.WriteLine(
                         $"Client connected and added to listener {listener}.");
                 }
@@ -103,10 +90,6 @@ namespace PortTunneler
             }
 
             _connectionListener?.Stop();
-            foreach (var (_, value) in _listeners)
-            {
-                await value.Close();
-            }
             Console.WriteLine("Listener Stopped, press any key to continue...");
             Console.ReadKey();
         }

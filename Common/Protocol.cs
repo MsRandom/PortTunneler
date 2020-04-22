@@ -19,15 +19,9 @@ namespace PortTunneler.Utils
             CreateClient = clientCreator;
         }
         
-        public void Init()
-        {
-            Registry[Name] = this;
-        }
-
-        //Helper method for nicer looking code
         public static void Init(Protocol protocol)
         {
-            protocol.Init();
+            Registry[protocol.Name] = protocol;
         }
         
         public override string ToString()

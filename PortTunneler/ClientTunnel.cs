@@ -84,20 +84,7 @@ namespace PortTunneler
                     var client = protocol.CreateClient(protocol, ip);
                     client.Connection = connectionClient;
                     Console.WriteLine("Enter 'stop' to close the connection.");
-                    var active = true;
-                    Task.Run(() =>
-                    {
-                        do
-                        {
-                            var line = Console.ReadLine();
-                            if (!string.IsNullOrEmpty(line) && line.ToLower().Contains("stop")) active = false;
-                        } while (active);
-                    }).Continue();
-                    while (active)
-                    {
-                        await client.HandleTraffic();
-                    }
-                    await client.Close();
+                    await client.Connect();
                     Console.WriteLine("Connection ended, press any key to continue...");
                     Console.ReadKey();
                 }

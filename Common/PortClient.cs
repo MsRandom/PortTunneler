@@ -10,10 +10,5 @@ namespace PortTunneler.Utils
         {
             EndPoint = endPoint;
         }
-        
-        public override string ToString()
-        {
-            return $"{EndPoint}@{Protocol}";
-        }
     }
 }

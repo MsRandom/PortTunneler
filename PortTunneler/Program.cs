@@ -14,10 +14,8 @@ namespace PortTunneler
 
         private static async Task Main(string[] args)
         {
-            var filter = new List<string>(args);
-            filter.RemoveAt(0);
             Protocols.Types.ForEach(Protocol.Init);
-            await Sides[args[0]].Run(filter.ToArray());
+            await Sides[args[0]].Run(args[1..]);
         }
     }
 }

@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace PortTunneler.Utils
 {
     public abstract class PortListener : PortConnection
@@ -8,10 +10,7 @@ namespace PortTunneler.Utils
         {
             Port = port;
         }
-        
-        //Connects the listener without blocking the thread
-        public abstract void Connect();
-        
+
         public override string ToString()
         {
             return $"{Port}@{Protocol}";
