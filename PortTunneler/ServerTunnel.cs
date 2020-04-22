@@ -31,7 +31,7 @@ namespace PortTunneler
             var p = args.Length == 1 ? int.Parse(args[0]) : 2020;
             _connectionListener = TcpListener.Create(p);
             _connectionListener.Start();
-            Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}, enter 'stop' to close the listener.");
+            Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}");
             var active = true;
             while (active)
             {

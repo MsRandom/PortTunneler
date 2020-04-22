@@ -51,7 +51,7 @@ namespace PortTunneler
 
             if (port < IPEndPoint.MinPort || port > IPEndPoint.MaxPort)
                 throw new ArgumentOutOfRangeException(nameof(port), port,
-                    "Port is too " + (port < 1024 ? "small" : "big"));
+                    "Port is too " + (port < IPEndPoint.MinPort ? "small" : "big"));
 
             try
             {
@@ -83,7 +83,7 @@ namespace PortTunneler
                 {
                     var client = protocol.CreateClient(protocol, ip);
                     client.Connection = connectionClient;
-                    Console.WriteLine("Enter 'stop' to close the connection.");
+                    Console.WriteLine("Connected.");
                     await client.Connect();
                     Console.WriteLine("Connection ended, press any key to continue...");
                     Console.ReadKey();
