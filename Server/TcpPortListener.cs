@@ -31,7 +31,7 @@ namespace PortTunneler.Server
                     {
                         var bytes = await Connection.GetStream().ReadSized();
                         if (bytes == null) return;
-                        var shorts = new[] {bytes[0], bytes[1]};
+                        var shorts = bytes[..2]!;
                         var client = _clients[BitConverter.ToUInt16(shorts, 0)];
                         if (!client.Connected) return;
                         await client.GetStream().WriteAsync(bytes, 2, bytes.Length - 2);
