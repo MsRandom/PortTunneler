@@ -13,7 +13,5 @@ namespace PortTunneler.Utils
         {
             Protocol = protocol;
         }
-        
-        public abstract Task Connect();
     }
 }

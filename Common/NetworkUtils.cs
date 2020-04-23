@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -7,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace PortTunneler
 {
-    //maybe use ValueTask eventually?
     public static class NetworkUtils
     {
         //TCP events sent and read as 6 byte strings
@@ -46,7 +44,7 @@ namespace PortTunneler
             return bytes;
         }
         
-        public static async Task WriteSized(this NetworkStream stream, byte[] data)
+        public static async ValueTask WriteSized(this NetworkStream stream, byte[] data)
         {
             if (data.Length <= ushort.MaxValue - 2)
             {
@@ -56,56 +54,5 @@ namespace PortTunneler
             }
             else throw new ArgumentOutOfRangeException(nameof(data.Length), data.Length, "Attempted to write data that was too big.");
         }
-        
-
-        /*
-        //Meant to be used as a way of "Fire and Forget", awaits the task without blocking the current thread and adds error handling, not sure how well it works
-        public static async void Continue(this Task task)
-        {
-            try
-            {
-                Tasks.Add(task);
-                await task;
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine(e);
-                throw;
-            }
-        }
-
-        public static async Task CreateTcpServer(this TcpListener listener, Func<TcpClient, Task> connection, Action end)
-        {
-            await CreateActiveListener(async () => await connection(await listener.AcceptTcpClientAsync()), end);
-        }
-        
-        //Is completely blocking if awaited, used to listen to anything blocking with a callback for reaching it
-        public static async Task CreateActiveListener(Func<Task> callback, Action end)
-        {
-            try
-            {
-                var active = true;
-                listen:
-                do
-                {
-                    try
-                    {
-                        await callback();
-                    }
-                    catch
-                    {
-                        active = false;
-                    }
-                } while (active);
-
-                await Task.Delay(100);
-                active = true;
-                goto listen;
-            }
-            finally
-            {
-                end();
-            }
-        }*/
     }
 }

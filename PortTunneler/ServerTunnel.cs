@@ -77,7 +77,7 @@ namespace PortTunneler
                     await stream.WriteAsync(BitConverter.GetBytes(code), 0, 1);
                     await stream.FlushAsync();
                     listener.Connection = client;
-                    await listener.Connect();
+                    listener.Connect();
                     Console.WriteLine(
                         $"Client connected and added to listener {listener}.");
                 }

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Threading.Tasks;
 
 namespace PortTunneler.Utils
 {
@@ -10,5 +11,7 @@ namespace PortTunneler.Utils
         {
             EndPoint = endPoint;
         }
+        
+        public abstract Task Connect();
     }
 }

@@ -10,9 +10,9 @@ namespace PortTunneler.Utils
         
         private string Name { get; }
         public Func<Protocol, int, PortListener> CreateServer { get; }
-        public Func<Protocol, IPEndPoint, PortConnection> CreateClient { get; }
+        public Func<Protocol, IPEndPoint, PortClient> CreateClient { get; }
 
-        public Protocol(string name, Func<Protocol, int, PortListener> serverCreator, Func<Protocol, IPEndPoint, PortConnection> clientCreator)
+        public Protocol(string name, Func<Protocol, int, PortListener> serverCreator, Func<Protocol, IPEndPoint, PortClient> clientCreator)
         {
             Name = name;
             CreateServer = serverCreator;

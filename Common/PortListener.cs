@@ -11,6 +11,8 @@ namespace PortTunneler.Utils
             Port = port;
         }
 
+        public abstract void Connect();
+
         public override string ToString()
         {
             return $"{Port}@{Protocol}";

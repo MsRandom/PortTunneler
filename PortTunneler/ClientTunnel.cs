@@ -62,13 +62,13 @@ namespace PortTunneler
                 await writer.WriteLineAsync($"{port}@{protocol}");
                 await writer.FlushAsync();
                 var bytes = new byte[2];
-                await stream.ReadAsync(bytes, 0, 1);
+                await stream.ReadAsync(bytes, 0, 2);
                 var response = BitConverter.ToChar(bytes, 0);
                 switch (response)
                 {
                     case 'W':
                         Console.WriteLine(
-                            "Warning: You are using a port which had been used before, if it was not you who previously used the port, please stop and refrain from using it in the future.");
+                            "Warning: You are using a port which had been used before, if it was not you who previously used the port, please stop using it and refrain from doing so in the future.");
                         break;
                     case 'E':
                         throw new ArgumentException("Port is already in use.");
@@ -83,7 +83,6 @@ namespace PortTunneler
                 {
                     var client = protocol.CreateClient(protocol, ip);
                     client.Connection = connectionClient;
-                    Console.WriteLine("Connected.");
                     await client.Connect();
                     Console.WriteLine("Connection ended, press any key to continue...");
                     Console.ReadKey();
