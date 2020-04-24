@@ -83,15 +83,17 @@ namespace PortTunneler
                 {
                     var client = protocol.CreateClient(protocol, ip);
                     client.Connection = connectionClient;
-                    await client.Connect();
+                    Console.WriteLine("Click CTRL+C to stop connection.");
+                    await client.Listen();
                     Console.WriteLine("Connection ended, press any key to continue...");
                     Console.ReadKey();
                 }
             }
-            catch (Exception e)
+            catch
             {
-                Console.Error.WriteLine(e);
-                Console.WriteLine("Caught an exception, connection ended.");
+                NetworkUtils.ProgramActive = false;
+                await Console.Error.WriteLineAsync("Caught an exception, connection ended.");
+                throw;
             }
         }
     }

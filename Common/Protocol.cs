@@ -31,13 +31,18 @@ namespace PortTunneler.Utils
         
         public override bool Equals(object? obj)
         {
-            return obj is Protocol protocol && Name.Equals(protocol.Name);
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            return obj is Protocol protocol && Name == protocol.Name;
         }
         
         public override int GetHashCode()
         {
             return Name.GetHashCode();
         }
+        
+        public static bool operator ==(Protocol listener, Protocol other) => listener.Equals(other);
+        public static bool operator !=(Protocol listener, Protocol other) => !(listener == other);
         
         public static bool TryParse(string name, out Protocol? protocol)
         {

@@ -15,11 +15,11 @@ namespace PortTunneler.Client
         
         private TcpPortClient(Protocol protocol, IPEndPoint endPoint) : base(protocol, endPoint) {}
 
-        public override async Task Connect()
+        public override async Task Listen()
         {
-            while (true)
+            if(Connection == null) return;
+            while (NetworkUtils.ProgramActive)
             {
-                if(Connection == null) continue;
                 foreach (var (id, client) in _clients)
                 {
                     if (!client.GetStream().DataAvailable) continue;
@@ -60,6 +60,11 @@ namespace PortTunneler.Client
                     }
                 }
             }
+
+            await Connection.GetStream().WriteSized(Encoding.UTF8.GetBytes(NetworkUtils.EndClient));
+            Connection.GetStream().Close();
+            Connection.Close();
+            Connection = null;
         }
         
         public static PortClient Create(Protocol protocol, IPEndPoint endPoint) => new TcpPortClient(protocol, endPoint);

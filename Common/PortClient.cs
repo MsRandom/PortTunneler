@@ -12,6 +12,6 @@ namespace PortTunneler.Utils
             EndPoint = endPoint;
         }
         
-        public abstract Task Connect();
+        public abstract Task Listen();
     }
 }

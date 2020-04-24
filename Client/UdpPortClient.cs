@@ -10,7 +10,7 @@ namespace PortTunneler.Client
         {
         }
 
-        public override Task Connect()
+        public override Task Listen()
         {
             throw new System.NotImplementedException();
         }

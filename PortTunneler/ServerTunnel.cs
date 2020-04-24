@@ -31,9 +31,12 @@ namespace PortTunneler
             var p = args.Length == 1 ? int.Parse(args[0]) : 2020;
             _connectionListener = TcpListener.Create(p);
             _connectionListener.Start();
-            Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}");
-            var active = true;
-            while (active)
+            Console.WriteLine($"Listening to connections at {_connectionListener.LocalEndpoint}, click CTRL+C to stop listener.");
+            NetworkUtils.ListenerEnded += (sender, eventArgs) =>
+            {
+                if (sender is PortListener listener) _listeners.Remove(listener.Port);
+            };
+            while (NetworkUtils.ProgramActive)
             {
                 try
                 {
@@ -77,18 +80,19 @@ namespace PortTunneler
                     await stream.WriteAsync(BitConverter.GetBytes(code), 0, 1);
                     await stream.FlushAsync();
                     listener.Connection = client;
-                    listener.Connect();
+                    listener.Start();
                     Console.WriteLine(
                         $"Client connected and added to listener {listener}.");
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Caught an exception, exiting.");
+                    Console.WriteLine("Caught an exception.");
                     Console.Error.WriteLine(e);
-                    active = false;
                 }
             }
-
+            
+            foreach (var (_, listener) in _listeners) listener.Dispose();
+            _listeners.Clear();
             _connectionListener?.Stop();
             Console.WriteLine("Listener Stopped, press any key to continue...");
             Console.ReadKey();

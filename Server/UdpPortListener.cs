@@ -8,7 +8,12 @@ namespace PortTunneler.Server
         {
         }
 
-        public override void Connect()
+        public override void Start()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public override void Dispose()
         {
             throw new System.NotImplementedException();
         }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using PortTunneler.Utils;
@@ -14,6 +15,11 @@ namespace PortTunneler
 
         private static async Task Main(string[] args)
         {
+            Console.CancelKeyPress += (sender, eventArgs) =>
+            {
+                NetworkUtils.ProgramActive = false;
+                eventArgs.Cancel = true;
+            };
             Protocols.Types.ForEach(Protocol.Init);
             await Sides[args[0]].Run(args[1..]);
         }

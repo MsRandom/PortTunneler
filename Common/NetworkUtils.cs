@@ -3,15 +3,19 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using PortTunneler.Utils;
 
 namespace PortTunneler
 {
     public static class NetworkUtils
     {
+        public static bool ProgramActive = true;
         //TCP events sent and read as 6 byte strings
         public const string NewClient = "TunnNC";
         public const string EndClient = "TunnEC";
         public const string RecClient = "TunnDC";
+        
+        public static event EventHandler ListenerEnded;
 
         //Read all data currently available without blocking, use stream.DataAvailable to make sure this is needed before using it to prevent confusing bugs 
         public static async Task<byte[]> ReadBytesAsync(this NetworkStream stream)
@@ -55,6 +59,11 @@ namespace PortTunneler
                 await stream.FlushAsync();
             }
             else throw new ArgumentOutOfRangeException(nameof(data.Length), data.Length, "Attempted to write data that was too big.");
+        }
+
+        public static void OnListenerEnded(PortListener listener)
+        {
+            ListenerEnded?.Invoke(listener, EventArgs.Empty);
         }
     }
 }
