@@ -46,6 +46,7 @@ namespace PortTunneler.Client
                             break;
                         case NetworkUtils.EndClient:
                             var removed = _clients[id];
+                            removed.GetStream().Close();
                             removed.Close();
                             _clients.Remove(id);
                             break;

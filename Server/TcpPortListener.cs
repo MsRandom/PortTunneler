@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using PortTunneler.Utils;
 
@@ -23,10 +22,19 @@ namespace PortTunneler.Server
             _listener.Start();
 
             if (Connection == null) return;
-            ThreadPool.QueueUserWorkItem(async state =>
+            Task.Run(async () =>
             {
                 while (true)
                 {
+                    if (_listener.Pending())
+                    {
+                        var client = await _listener.AcceptTcpClientAsync();
+                        if (_clients.Count >= ushort.MaxValue || Connection == null) return;
+                        var id = (ushort) _clients.Count;
+                        _clients[id] = client;
+                        await WriteData(NetworkUtils.NewClient, id);
+                    }
+
                     if (Connection.GetStream().DataAvailable)
                     {
                         var bytes = await Connection.GetStream().ReadSized();
@@ -37,16 +45,7 @@ namespace PortTunneler.Server
                         await client.GetStream().WriteAsync(bytes, 2, bytes.Length - 2);
                         await client.GetStream().FlushAsync();
                     }
-                    
-                    if (_listener.Pending())
-                    {
-                        var client = await _listener.AcceptTcpClientAsync();
-                        if (_clients.Count >= ushort.MaxValue || Connection == null) return;
-                        var id = (ushort) _clients.Count;
-                        _clients[id] = client;
-                        await WriteData(NetworkUtils.NewClient, id);
-                    }
-                    
+
                     foreach (var (id, client) in _clients)
                     {
                         if (client.Connected)
@@ -60,22 +59,22 @@ namespace PortTunneler.Server
                         {
                             await WriteData(NetworkUtils.EndClient, id);
                             _clients.Remove(id, out var c);
-                            if (c != null && client == c)
-                                c.Close();
-                            break;
-                        }                        
+                            if (c == null || client != c) continue;
+                            c.GetStream().Close();
+                            c.Close();
+                        }
                     }
                 }
             });
         }
         
-        private async ValueTask WriteData(string type, ushort id)
+        private async Task WriteData(string type, ushort id)
         {
             await Write(Encoding.UTF8.GetBytes(type));
             await Write(BitConverter.GetBytes(id));
         }
 
-        private async ValueTask Write(byte[] bytes)
+        private async Task Write(byte[] bytes)
         {
             if (Connection == null) return;
             await Connection.GetStream().WriteAsync(bytes, 0, bytes.Length);

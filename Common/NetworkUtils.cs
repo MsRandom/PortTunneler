@@ -33,17 +33,19 @@ namespace PortTunneler
             return ms.ToArray();
         }
 
+        //Reads the first 2 bytes as an unsigned short and uses it as the buffer size to read
         public static async Task<byte[]?> ReadSized(this NetworkStream stream)
         {
             var bytes = new byte[2];
             await stream.ReadAsync(bytes, 0, 2);
-            var size = BitConverter.ToInt16(new[] {bytes[0], bytes[1]}, 0);
+            var size = BitConverter.ToInt16(bytes, 0);
             if (size <= 2) return null;
             bytes = new byte[size];
             await stream.ReadAsync(bytes, 0, size);
             return bytes;
         }
         
+        //Writes the data prefixed with the size as an unsigned short with 2 bytes
         public static async ValueTask WriteSized(this NetworkStream stream, byte[] data)
         {
             if (data.Length <= ushort.MaxValue - 2)
