@@ -59,7 +59,7 @@ namespace PortTunneler
                         {
                             Console.WriteLine(
                                 $"Client attempted to use listener {listener} which is already in use. Connection was rejected.");
-                            await stream.WriteAsync(BitConverter.GetBytes('E'), 0, 1);
+                            await stream.WriteAsync(BitConverter.GetBytes('E'), 0, 2);
                             await stream.FlushAsync();
                             continue;
                         }
@@ -77,7 +77,7 @@ namespace PortTunneler
                         code = 'I';
                     }
 
-                    await stream.WriteAsync(BitConverter.GetBytes(code), 0, 1);
+                    await stream.WriteAsync(BitConverter.GetBytes(code), 0, 2);
                     await stream.FlushAsync();
                     listener.Connection = client;
                     listener.Start();

@@ -4,7 +4,7 @@ namespace PortTunneler.Server
 {
     public class UdpPortListener : PortListener
     {
-        public UdpPortListener(Protocol protocol, int port) : base(protocol, port)
+        private UdpPortListener(Protocol protocol, int port) : base(protocol, port)
         {
         }
 
@@ -17,5 +17,7 @@ namespace PortTunneler.Server
         {
             throw new System.NotImplementedException();
         }
+        
+        public static PortListener Create(Protocol protocol, int port) => new UdpPortListener(protocol, port);
     }
 }

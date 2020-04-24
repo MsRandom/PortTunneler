@@ -21,13 +21,8 @@ namespace PortTunneler.Utils
             return $"{Port}@{Protocol}";
         }
         
-        public override bool Equals(object? obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            return obj is PortListener other && Port == other.Port && Protocol == other.Protocol;
-        }
-
+        public override bool Equals(object? obj) => !ReferenceEquals(null, obj) && (ReferenceEquals(this, obj) || obj is PortListener other && Port == other.Port && Protocol == other.Protocol);
+        
         public override int GetHashCode()
         {
             var port = Port;
@@ -36,7 +31,7 @@ namespace PortTunneler.Utils
             return port ^ protocol;
         }
         
-        public static bool operator ==(PortListener listener, PortListener other) => listener.Equals(other);
-        public static bool operator !=(PortListener listener, PortListener other) => !(listener == other);
+        public static bool operator ==(PortListener? listener, PortListener? other) => ReferenceEquals(listener, null) && ReferenceEquals(other, null) || !ReferenceEquals(listener, null) && listener.Equals(other);
+        public static bool operator !=(PortListener? listener, PortListener? other) => !(listener == other);
     }
 }
